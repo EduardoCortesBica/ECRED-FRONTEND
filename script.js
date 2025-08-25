@@ -514,7 +514,7 @@ function handleDataSubmission() {
 
 function exportToExcel(data) {
     // Enviar dados para o backend Flask
-    const backendUrl = 'http://localhost:5000/api/submit_form'; // URL do backend local
+    const backendUrl = 'https://script.google.com/macros/s/AKfycbxgUvfFC64dBDaIX9M7I_OwIt8bnOi0SaY52wbmHgC93p7ATZs38Re-49xM222OZb05/exec'; // URL do backend local
     
     try {
         // Mostrar indicador de carregamento
