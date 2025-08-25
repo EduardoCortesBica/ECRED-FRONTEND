@@ -515,34 +515,66 @@ function handleDataSubmission() {
 function exportToExcel(data) {
     // Enviar dados para o backend Flask
     const backendUrl = 'https://script.google.com/macros/s/AKfycbxgUvfFC64dBDaIX9M7I_OwIt8bnOi0SaY52wbmHgC93p7ATZs38Re-49xM222OZb05/exec'; // URL do backend local
-    
-    try {
         // Mostrar indicador de carregamento
-        console.log('Enviando dados para o backend...');
-        
-        fetch(backendUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data)
-        })
-        .then(response => response.json())
-        .then(result => {
-            if (result.success) {
-                console.log('✅ Dados enviados com sucesso para o backend!');
-                console.log('Timestamp:', result.timestamp);
-                if (result.spreadsheet_url) {
-                    console.log('📊 Planilha Google Sheets:', result.spreadsheet_url);
-                }
-            } else {
-                console.error('❌ Erro ao enviar dados:', result.message);
-            }
-        })
-        .catch(error => {
-            console.error('❌ Erro de conexão com o backend:', error);
-            console.log('💡 Certifique-se de que o backend Flask está rodando em https://script.google.com/macros/s/AKfycbxgUvfFC64dBDaIX9M7I_OwIt8bnOi0SaY52wbmHgC93p7ATZs38Re-49xM222OZb05/exec');
-            
+  const submitBtn = document.getElementById('btn-submit');
+  const originalText = submitBtn.textContent;
+  submitBtn.textContent = 'Enviando...';
+  submitBtn.disabled = true;
+     // Enviar dados para o Google Apps Script
+  fetch(backendUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data)
+  })
+  .then(response => response.json())
+  .then(result => {
+    if (result.success) {
+      console.log('✅ Dados enviados com sucesso para o Google Sheets!');
+      console.log('Timestamp:', result.timestamp);
+      // Mostrar mensagem de sucesso
+      const resultContent = `
+        <div class="result-message result-success">
+          <h3>Solicitação enviada com sucesso!</h3>
+          <p>Obrigado, <strong>${data.nome}</strong>! Seus dados foram enviados com sucesso.</p>
+          <p>Nossa equipe entrará em contato através do WhatsApp <strong>${data.whatsapp}</strong> em breve.</p>
+          <p><strong>Serviço solicitado:</strong> ${getServiceName(formState.selectedService)}</p>
+          <p><em>Os dados foram salvos automaticamente em nossa planilha.</em></p>
+        </div>
+      `;
+      
+      showResult(resultContent);
+    } else {
+      console.error('❌ Erro ao enviar dados:', result.error);
+      alert('Erro ao enviar dados. Por favor, tente novamente.');
+    }
+  })
+  .catch(error => {
+    console.error('❌ Erro de conexão:', error);
+    
+    // Fallback: salvar dados localmente (para não perder a informação)
+    localStorage.setItem('ecred_backup_' + new Date().getTime(), JSON.stringify(data));
+    alert('Problema de conexão. Seus dados foram salvos localmente e serão enviados quando a conexão estiver restaurada.');
+    
+    // Mostrar mensagem de aviso
+    const resultContent = `
+      <div class="result-message result-info">
+        <h3>Solicitação salva localmente!</h3>
+        <p>Obrigado, <strong>${data.nome}</strong>! Seus dados foram salvos localmente.</p>
+        <p>Nossa equipe entrará em contato através do WhatsApp <strong>${data.whatsapp}</strong> em breve.</p>
+        <p><strong>Nota:</strong> Devido a um problema de conexão, seus dados serão enviados para nosso sistema quando a conexão for restabelecida.</p>
+      </div>
+    `;
+    
+    showResult(resultContent);
+  })
+  .finally(() => {
+    // Restaurar botão
+    submitBtn.textContent = originalText;
+    submitBtn.disabled = false;
+  });
+}
             // Fallback: salvar dados localmente como JSON para não perder
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
