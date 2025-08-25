@@ -541,7 +541,7 @@ function exportToExcel(data) {
         })
         .catch(error => {
             console.error('❌ Erro de conexão com o backend:', error);
-            console.log('💡 Certifique-se de que o backend Flask está rodando em http://localhost:5000');
+            console.log('💡 Certifique-se de que o backend Flask está rodando em https://script.google.com/macros/s/AKfycbxgUvfFC64dBDaIX9M7I_OwIt8bnOi0SaY52wbmHgC93p7ATZs38Re-49xM222OZb05/exec');
             
             // Fallback: salvar dados localmente como JSON para não perder
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
