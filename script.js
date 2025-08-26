@@ -7,13 +7,24 @@ let formState = {
     history: ['service'] // Histórico de navegação
 };
 
-// URL do seu Google Apps Script (SUBSTITUA pela sua URL)
-const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzigxvikkjpf3tlnN-vgxue2jOPAsw4jzTt6R8nsT2ihDU02Q1DAvxQDhiUWjM_3CxY/exec';
+// IDs dos campos do Google Form (você vai precisar criar um form e obter esses IDs)
+const FIELD_IDS = {
+    TIMESTAMP: 'entry.123456789', // Substitua pelos IDs reais
+    SERVICE: 'entry.987654321',
+    NAME: 'entry.111111111',
+    CPF: 'entry.222222222',
+    AGE: 'entry.333333333',
+    WHATSAPP: 'entry.444444444',
+    ANSWERS: 'entry.555555555'
+};
+
+// URL de ação do Google Form (SUBSTITUA pela sua URL)
+const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/SEU_FORM_ID/formResponse';
 
 // Inicialização quando o DOM estiver carregado
 document.addEventListener('DOMContentLoaded', function() {
     initializeForm();
-    checkLocalStorage(); // Verificar se há dados salvos localmente
+    checkLocalStorage();
 });
 
 function initializeForm() {
@@ -23,30 +34,24 @@ function initializeForm() {
     serviceRadios.forEach(radio => {
         radio.addEventListener('change', function() {
             formState.selectedService = this.value;
-            // Resetar histórico quando uma nova seleção é feita
             formState.history = ['service'];
-            // Avanço automático após seleção
             setTimeout(() => {
                 handleServiceSelection();
-            }, 300); // Pequeno delay para melhor UX
+            }, 300);
         });
     });
     
-    // Event listener para botão de envio dos dados
     document.getElementById('btn-submit').addEventListener('click', function() {
         handleDataSubmission();
     });
     
-    // Event listener para botão de reiniciar
     document.getElementById('btn-restart').addEventListener('click', function() {
         restartForm();
     });
     
-    // Máscaras para os campos
     setupInputMasks();
 }
 
-// Função para verificar dados salvos localmente
 function checkLocalStorage() {
     const backupKeys = [];
     for (let i = 0; i < localStorage.length; i++) {
@@ -57,34 +62,25 @@ function checkLocalStorage() {
     }
     
     if (backupKeys.length > 0) {
-        console.log('📦 Dados salvos localmente encontrados:', backupKeys.length);
-        // Opcional: mostrar aviso para usuário
+        console.log('Dados salvos localmente:', backupKeys.length);
     }
 }
 
-// Função para adicionar ao histórico
 function addToHistory(step) {
     formState.history.push(step);
 }
 
-// Função para voltar no histórico
 function goBack() {
     if (formState.history.length > 1) {
-        // Remove o step atual
         formState.history.pop();
-        // Pega o step anterior
         const previousStep = formState.history[formState.history.length - 1];
         
-        // Navega para o step anterior
         if (previousStep === 'service') {
             showStep('service');
         } else if (previousStep === 'questions') {
-            // Reconstrói as perguntas baseado no serviço selecionado
-            // Remove 'questions' do histórico para evitar duplicação
             formState.history.pop();
             handleServiceSelection();
         } else if (previousStep === 'data') {
-            // Remove 'data' do histórico para evitar duplicação
             formState.history.pop();
             showDataForm();
         }
@@ -92,7 +88,6 @@ function goBack() {
 }
 
 function setupInputMasks() {
-    // Máscara para CPF
     const cpfInput = document.getElementById('cpf');
     cpfInput.addEventListener('input', function() {
         let value = this.value.replace(/\D/g, '');
@@ -102,7 +97,6 @@ function setupInputMasks() {
         this.value = value;
     });
     
-    // Máscara para WhatsApp
     const whatsappInput = document.getElementById('whatsapp');
     whatsappInput.addEventListener('input', function() {
         let value = this.value.replace(/\D/g, '');
@@ -170,7 +164,6 @@ function showINSSQuestions() {
     
     showQuestionsStep(questionsHTML);
     
-    // Event listeners para as perguntas do INSS
     const inssRadios = document.querySelectorAll('input[name="inss-representante"]');
     const btnNext = document.getElementById('btn-next-inss');
     
@@ -459,11 +452,9 @@ function showDataForm() {
 }
 
 function showStep(stepName) {
-    // Esconder todas as etapas
     const steps = document.querySelectorAll('.form-step');
     steps.forEach(step => step.classList.remove('active'));
     
-    // Mostrar a etapa solicitada
     const targetStep = document.getElementById(`step-${stepName}`);
     if (targetStep) {
         targetStep.classList.add('active');
@@ -478,34 +469,28 @@ function showResult(content) {
 }
 
 function handleDataSubmission() {
-    // Coletar dados do formulário
     const nome = document.getElementById('nome').value.trim();
     const cpf = document.getElementById('cpf').value.trim();
     const idade = document.getElementById('idade').value.trim();
     const whatsapp = document.getElementById('whatsapp').value.trim();
     
-    // Validar campos obrigatórios
     if (!nome || !cpf || !idade || !whatsapp) {
         alert('Por favor, preencha todos os campos obrigatórios.');
         return;
     }
     
-    // Validar idade mínima
     if (parseInt(idade) < 18) {
         alert('É necessário ter pelo menos 18 anos para solicitar o crédito.');
         return;
     }
     
-    // Validar CPF (validação básica de formato)
     if (!isValidCPF(cpf)) {
         alert('Por favor, informe um CPF válido.');
         return;
     }
     
-    // Salvar dados
     formState.userData = { nome, cpf, idade, whatsapp };
     
-    // Preparar dados para exportação
     const exportData = {
         service: formState.selectedService,
         nome: nome,
@@ -515,110 +500,104 @@ function handleDataSubmission() {
         questionAnswers: formState.questionAnswers
     };
     
-    // Exportar para Google Sheets
-    exportToGoogleSheets(exportData);
+    submitToGoogleForm(exportData);
 }
 
-function exportToGoogleSheets(data) {
-    // Mostrar indicador de carregamento
+function submitToGoogleForm(data) {
     const submitBtn = document.getElementById('btn-submit');
     const originalText = submitBtn.textContent;
     submitBtn.textContent = 'Enviando...';
     submitBtn.disabled = true;
     
-    // Usar XMLHttpRequest em vez de fetch para contornar problemas CORS
-    const xhr = new XMLHttpRequest();
-    const url = BACKEND_URL;
-    
-    // Preparar dados para envio
-    const formData = new URLSearchParams();
-    formData.append('data', JSON.stringify(data));
-    
-    xhr.open('POST', url, true);
-    
-    xhr.onload = function() {
-        if (xhr.status === 200) {
-            try {
-                const response = JSON.parse(xhr.responseText);
-                if (response.success) {
-                    console.log('✅ Dados enviados com sucesso para o Google Sheets!');
-                    
-                    // Mostrar mensagem de sucesso
-                    const resultContent = `
-                        <div class="result-message result-success">
-                            <h3>Solicitação enviada com sucesso!</h3>
-                            <p>Obrigado, <strong>${data.nome}</strong>! Seus dados foram enviados com sucesso.</p>
-                            <p>Nossa equipe entrará em contato através do WhatsApp <strong>${data.whatsapp}</strong> em breve para dar continuidade ao seu processo de crédito.</p>
-                            <p><strong>Serviço solicitado:</strong> ${getServiceName(formState.selectedService)}</p>
-                            <p><em>Os dados foram salvos automaticamente em nossa planilha.</em></p>
-                        </div>
-                    `;
-                    
-                    showResult(resultContent);
-                } else {
-                    console.error('❌ Erro do servidor:', response.error);
-                    saveToLocalStorage(data);
-                }
-            } catch (error) {
-                console.error('❌ Erro ao processar resposta:', error);
-                saveToLocalStorage(data);
-            }
-        } else {
-            console.error('❌ Erro HTTP:', xhr.status);
-            saveToLocalStorage(data);
+    try {
+        // Criar iframe invisível para enviar o form
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.name = 'google-form-frame';
+        document.body.appendChild(iframe);
+        
+        // Criar formulário
+        const form = document.createElement('form');
+        form.action = GOOGLE_FORM_URL;
+        form.method = 'POST';
+        form.target = 'google-form-frame';
+        form.style.display = 'none';
+        
+        // Adicionar campos ao formulário
+        const formData = {
+            [FIELD_IDS.TIMESTAMP]: new Date().toLocaleString('pt-BR'),
+            [FIELD_IDS.SERVICE]: getServiceName(data.service),
+            [FIELD_IDS.NAME]: data.nome,
+            [FIELD_IDS.CPF]: data.cpf,
+            [FIELD_IDS.AGE]: data.idade,
+            [FIELD_IDS.WHATSAPP]: data.whatsapp,
+            [FIELD_IDS.ANSWERS]: JSON.stringify(data.questionAnswers)
+        };
+        
+        for (const [key, value] of Object.entries(formData)) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value;
+            form.appendChild(input);
         }
         
-        // Restaurar botão
-        submitBtn.textContent = originalText;
-        submitBtn.disabled = false;
-    };
-    
-    xhr.onerror = function() {
-        console.error('❌ Erro de rede ao tentar conectar com o servidor');
-        saveToLocalStorage(data);
+        document.body.appendChild(form);
         
-        // Restaurar botão
-        submitBtn.textContent = originalText;
-        submitBtn.disabled = false;
-    };
-    
-    xhr.onabort = function() {
-        console.warn('⚠️ Requisição abortada');
-        saveToLocalStorage(data);
+        // Configurar timeout para limpeza
+        const cleanup = () => {
+            setTimeout(() => {
+                if (document.body.contains(form)) document.body.removeChild(form);
+                if (document.body.contains(iframe)) document.body.removeChild(iframe);
+            }, 3000);
+        };
         
-        // Restaurar botão
-        submitBtn.textContent = originalText;
-        submitBtn.disabled = false;
-    };
-    
-    // Configurar timeout de 15 segundos
-    xhr.timeout = 15000;
-    xhr.ontimeout = function() {
-        console.error('⏰ Timeout: Servidor não respondeu em 15 segundos');
-        saveToLocalStorage(data);
+        // Enviar formulário
+        iframe.onload = function() {
+            console.log('✅ Formulário enviado com sucesso!');
+            
+            const resultContent = `
+                <div class="result-message result-success">
+                    <h3>Solicitação enviada com sucesso!</h3>
+                    <p>Obrigado, <strong>${data.nome}</strong>! Seus dados foram enviados com sucesso.</p>
+                    <p>Nossa equipe entrará em contato através do WhatsApp <strong>${data.whatsapp}</strong> em breve.</p>
+                    <p><strong>Serviço solicitado:</strong> ${getServiceName(data.service)}</p>
+                </div>
+            `;
+            
+            showResult(resultContent);
+            cleanup();
+        };
         
-        // Restaurar botão
-        submitBtn.textContent = originalText;
-        submitBtn.disabled = false;
-    };
-    
-    // Enviar requisição
-    xhr.send(formData.toString());
+        iframe.onerror = function() {
+            console.error('❌ Erro ao enviar formulário');
+            saveToLocalStorage(data);
+            cleanup();
+        };
+        
+        form.submit();
+        
+    } catch (error) {
+        console.error('❌ Erro no envio:', error);
+        saveToLocalStorage(data);
+    } finally {
+        setTimeout(() => {
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+        }, 2000);
+    }
 }
 
-// Função para salvar localmente em caso de erro
 function saveToLocalStorage(data) {
-    // Fallback: salvar dados localmente
     const backupKey = 'ecred_backup_' + new Date().getTime();
     localStorage.setItem(backupKey, JSON.stringify(data));
     
-    // Mostrar mensagem de aviso
     const resultContent = `
         <div class="result-message result-info">
             <h3>Solicitação salva localmente!</h3>
             <p>Obrigado, <strong>${data.nome}</strong>! Seus dados foram salvos localmente.</p>
             <p>Nossa equipe entrará em contato através do WhatsApp <strong>${data.whatsapp}</strong> em breve.</p>
-            <p><strong>Nota:</strong> Devido a um problema de conexão, seus dados serão enviados para nosso sistema quando a conexão for restabelecida.</p>
+            <p><strong>Nota:</strong> Devido a um problema temporário, seus dados serão enviados para nosso sistema em breve.</p>
         </div>
     `;
     
@@ -626,16 +605,10 @@ function saveToLocalStorage(data) {
 }
 
 function isValidCPF(cpf) {
-    // Remove caracteres não numéricos
     cpf = cpf.replace(/\D/g, '');
-    
-    // Verifica se tem 11 dígitos
     if (cpf.length !== 11) return false;
-    
-    // Verifica se todos os dígitos são iguais
     if (/^(\d)\1{10}$/.test(cpf)) return false;
-    
-    return true; // Validação básica, pode ser expandida
+    return true;
 }
 
 function getServiceName(service) {
@@ -646,21 +619,18 @@ function getServiceName(service) {
         'bolsa-familia': 'Bolsa Família',
         'fgts': 'Antecipação do FGTS'
     };
-    
     return serviceNames[service] || service;
 }
 
 function restartForm() {
-    // Resetar estado
     formState = {
         selectedService: null,
         currentStep: 'service',
         userData: {},
         questionAnswers: {},
-        history: ['service'] // Resetar histórico
+        history: ['service']
     };
     
-    // Limpar formulários
     document.querySelectorAll('input').forEach(input => {
         if (input.type === 'radio') {
             input.checked = false;
@@ -669,75 +639,22 @@ function restartForm() {
         }
     });
     
-    // Voltar para a primeira etapa
     showStep('service');
 }
 
-// ============================================================
-// FUNÇÕES DE TESTE E DIAGNÓSTICO (executar no console)
-// ============================================================
-
-// Função para testar a conexão com o Google Apps Script
-function testConnection() {
-    console.log('🔍 Testando conexão com o Google Apps Script...');
-    
-    const xhr = new XMLHttpRequest();
-    const testUrl = BACKEND_URL + '?test=' + Date.now();
-    
-    xhr.open('GET', testUrl, true);
-    
-    xhr.onload = function() {
-        if (xhr.status === 200) {
-            try {
-                const response = JSON.parse(xhr.responseText);
-                console.log('✅ Conexão bem-sucedida! Resposta:', response);
-                alert('✅ Conexão funcionando!\nResposta: ' + JSON.stringify(response, null, 2));
-            } catch (error) {
-                console.error('❌ Erro ao parsear resposta:', error);
-                console.log('Resposta bruta:', xhr.responseText);
-                alert('❌ Resposta inválida do servidor. Verifique o console.');
-            }
-        } else {
-            console.error('❌ Erro HTTP:', xhr.status, xhr.statusText);
-            alert('❌ Erro HTTP: ' + xhr.status + ' - ' + xhr.statusText);
-        }
-    };
-    
-    xhr.onerror = function() {
-        console.error('❌ Erro de rede - não foi possível conectar ao servidor');
-        alert('❌ Erro de rede - não foi possível conectar ao servidor');
-    };
-    
-    xhr.ontimeout = function() {
-        console.error('⏰ Timeout - servidor não respondeu');
-        alert('⏰ Timeout - servidor não respondeu em tempo hábil');
-    };
-    
-    xhr.timeout = 10000; // 10 segundos
-    xhr.send();
-}
-
-// Função para ver dados salvos localmente
+// Funções de utilitário para debug
 function viewLocalStorage() {
     const backups = [];
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key.startsWith('ecred_backup_')) {
-            const data = JSON.parse(localStorage.getItem(key));
-            backups.push({ key, data });
+            backups.push({ key, data: JSON.parse(localStorage.getItem(key)) });
         }
     }
-    
-    console.log('📦 Dados salvos localmente:', backups);
-    if (backups.length === 0) {
-        alert('Nenhum dado salvo localmente encontrado.');
-    } else {
-        alert(`Encontrados ${backups.length} registros salvos localmente. Verifique o console para detalhes.`);
-    }
+    console.log('Dados locais:', backups);
     return backups;
 }
 
-// Função para limpar dados locais
 function clearLocalStorage() {
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
@@ -746,25 +663,48 @@ function clearLocalStorage() {
             keysToRemove.push(key);
         }
     }
-    
     keysToRemove.forEach(key => localStorage.removeItem(key));
-    console.log('🧹 Dados locais removidos:', keysToRemove.length);
-    alert(`Removidos ${keysToRemove.length} registros locais.`);
+    console.log('Dados locais removidos:', keysToRemove.length);
+}
+// Função para descobrir IDs automaticamente
+function findFormIds() {
+    // Abra o console (F12) e cole esta função
+    // Depois execute: findFormIds()
+    
+    const form = document.querySelector('form');
+    if (!form) {
+        console.error('Nenhum formulário encontrado na página');
+        return;
+    }
+    
+    console.log('🔍 Procurando IDs de campos no formulário...');
+    
+    // Procurar por inputs com name começando com "entry."
+    const inputs = form.querySelectorAll('input[name^="entry."], textarea[name^="entry."]');
+    
+    if (inputs.length === 0) {
+        console.log('❌ Nenhum campo com ID "entry." encontrado');
+        console.log('📋 Todos os campos encontrados:');
+        form.querySelectorAll('input, textarea').forEach(input => {
+            console.log(`- ${input.name}: ${input.placeholder || input.type}`);
+        });
+        return;
+    }
+    
+    console.log('✅ Campos encontrados:');
+    inputs.forEach(input => {
+        console.log(`📋 ${input.name}: ${input.placeholder || input.type || 'campo'}`);
+    });
+    
+    // Sugerir estrutura para o código
+    console.log('\n💡 Estrutura sugerida para seu script:');
+    console.log(`const FIELD_IDS = {`);
+    inputs.forEach((input, index) => {
+        const fieldNames = ['TIMESTAMP', 'SERVICE', 'NAME', 'CPF', 'AGE', 'WHATSAPP', 'ANSWERS'];
+        const name = fieldNames[index] || `FIELD_${index + 1}`;
+        console.log(`    ${name}: '${input.name}',`);
+    });
+    console.log(`};`);
 }
 
-// Função para simular envio de dados (para teste)
-function testSubmit() {
-    const testData = {
-        service: 'inss',
-        nome: 'João Silva Teste',
-        cpf: '123.456.789-00',
-        idade: '35',
-        whatsapp: '(11) 99999-9999',
-        questionAnswers: {
-            inssRepresentante: 'nao'
-        }
-    };
-    
-    console.log('🧪 Testando envio de dados:', testData);
-    exportToGoogleSheets(testData);
-}
+// Execute esta função no console do navegador quando estiver na página do Google Forms
