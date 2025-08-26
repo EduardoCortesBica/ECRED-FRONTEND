@@ -8,7 +8,7 @@ let formState = {
 };
 
 // URL do seu Google Apps Script
-const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxgUvfFC64dBDaIX9M7I_OwIt8bnOi0SaY52wbmHgC93p7ATZs38Re-49xM222OZb05/exec';
+const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbyBuyZRoBzvZHz63GiuTOSIbAE2YWKRQ0VUr-dWkKLnHEFzT7huH0GiK9FFHQr3BPr9/exec';
 
 // Inicialização quando o DOM estiver carregado
 document.addEventListener('DOMContentLoaded', function() {
