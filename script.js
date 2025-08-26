@@ -617,3 +617,45 @@ function restartForm() {
     // Voltar para a primeira etapa
     showStep('service');
 }
+// Adicione esta função para verificar dados salvos localmente
+function checkLocalStorage() {
+    const backupKeys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('ecred_backup_')) {
+            backupKeys.push(key);
+        }
+    }
+    
+    if (backupKeys.length > 0) {
+        console.log('📦 Dados salvos localmente encontrados:', backupKeys);
+        // Aqui você pode adicionar lógica para reenviar automaticamente
+    }
+}
+
+// Chame esta função quando a página carregar
+document.addEventListener('DOMContentLoaded', function() {
+    initializeForm();
+    checkLocalStorage(); // Adicione esta linha
+});
+// Adicione esta função para verificar dados salvos localmente
+function checkLocalStorage() {
+    const backupKeys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('ecred_backup_')) {
+            backupKeys.push(key);
+        }
+    }
+    
+    if (backupKeys.length > 0) {
+        console.log('📦 Dados salvos localmente encontrados:', backupKeys);
+        // Aqui você pode adicionar lógica para reenviar automaticamente
+    }
+}
+
+// Chame esta função quando a página carregar
+document.addEventListener('DOMContentLoaded', function() {
+    initializeForm();
+    checkLocalStorage(); // Adicione esta linha
+});
