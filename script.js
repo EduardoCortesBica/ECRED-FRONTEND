@@ -7,12 +7,13 @@ let formState = {
     history: ['service'] // Histórico de navegação
 };
 
-// URL do seu Google Apps Script
+// URL do seu Google Apps Script (SUBSTITUA pela sua URL)
 const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbyBuyZRoBzvZHz63GiuTOSIbAE2YWKRQ0VUr-dWkKLnHEFzT7huH0GiK9FFHQr3BPr9/exec';
 
 // Inicialização quando o DOM estiver carregado
 document.addEventListener('DOMContentLoaded', function() {
     initializeForm();
+    checkLocalStorage(); // Verificar se há dados salvos localmente
 });
 
 function initializeForm() {
@@ -43,6 +44,22 @@ function initializeForm() {
     
     // Máscaras para os campos
     setupInputMasks();
+}
+
+// Função para verificar dados salvos localmente
+function checkLocalStorage() {
+    const backupKeys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('ecred_backup_')) {
+            backupKeys.push(key);
+        }
+    }
+    
+    if (backupKeys.length > 0) {
+        console.log('📦 Dados salvos localmente encontrados:', backupKeys.length);
+        // Opcional: mostrar aviso para usuário
+    }
 }
 
 // Função para adicionar ao histórico
@@ -509,65 +526,103 @@ function exportToGoogleSheets(data) {
     submitBtn.textContent = 'Enviando...';
     submitBtn.disabled = true;
     
-    // Enviar dados para o Google Apps Script
-    fetch(BACKEND_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Erro na resposta do servidor');
-        }
-        return response.json();
-    })
-    .then(result => {
-        if (result.success) {
-            console.log('✅ Dados enviados com sucesso para o Google Sheets!');
-            
-            // Mostrar mensagem de sucesso
-            const resultContent = `
-                <div class="result-message result-success">
-                    <h3>Solicitação enviada com sucesso!</h3>
-                    <p>Obrigado, <strong>${data.nome}</strong>! Seus dados foram enviados com sucesso.</p>
-                    <p>Nossa equipe entrará em contato através do WhatsApp <strong>${data.whatsapp}</strong> em breve para dar continuidade ao seu processo de crédito.</p>
-                    <p><strong>Serviço solicitado:</strong> ${getServiceName(formState.selectedService)}</p>
-                    <p><em>Os dados foram salvos automaticamente em nossa planilha.</em></p>
-                </div>
-            `;
-            
-            showResult(resultContent);
+    // Usar XMLHttpRequest em vez de fetch para contornar problemas CORS
+    const xhr = new XMLHttpRequest();
+    const url = BACKEND_URL;
+    
+    // Preparar dados para envio
+    const formData = new URLSearchParams();
+    formData.append('data', JSON.stringify(data));
+    
+    xhr.open('POST', url, true);
+    
+    xhr.onload = function() {
+        if (xhr.status === 200) {
+            try {
+                const response = JSON.parse(xhr.responseText);
+                if (response.success) {
+                    console.log('✅ Dados enviados com sucesso para o Google Sheets!');
+                    
+                    // Mostrar mensagem de sucesso
+                    const resultContent = `
+                        <div class="result-message result-success">
+                            <h3>Solicitação enviada com sucesso!</h3>
+                            <p>Obrigado, <strong>${data.nome}</strong>! Seus dados foram enviados com sucesso.</p>
+                            <p>Nossa equipe entrará em contato através do WhatsApp <strong>${data.whatsapp}</strong> em breve para dar continuidade ao seu processo de crédito.</p>
+                            <p><strong>Serviço solicitado:</strong> ${getServiceName(formState.selectedService)}</p>
+                            <p><em>Os dados foram salvos automaticamente em nossa planilha.</em></p>
+                        </div>
+                    `;
+                    
+                    showResult(resultContent);
+                } else {
+                    console.error('❌ Erro do servidor:', response.error);
+                    saveToLocalStorage(data);
+                }
+            } catch (error) {
+                console.error('❌ Erro ao processar resposta:', error);
+                saveToLocalStorage(data);
+            }
         } else {
-            console.error('❌ Erro ao enviar dados:', result.error);
-            throw new Error(result.error || 'Erro desconhecido');
+            console.error('❌ Erro HTTP:', xhr.status);
+            saveToLocalStorage(data);
         }
-    })
-    .catch(error => {
-        console.error('❌ Erro de conexão:', error);
         
-        // Fallback: salvar dados localmente (para não perder a informação)
-        const backupKey = 'ecred_backup_' + new Date().getTime();
-        localStorage.setItem(backupKey, JSON.stringify(data));
-        
-        // Mostrar mensagem de aviso
-        const resultContent = `
-            <div class="result-message result-info">
-                <h3>Solicitação salva localmente!</h3>
-                <p>Obrigado, <strong>${data.nome}</strong>! Seus dados foram salvos localmente.</p>
-                <p>Nossa equipe entrará em contato através do WhatsApp <strong>${data.whatsapp}</strong> em breve.</p>
-                <p><strong>Nota:</strong> Devido a um problema de conexão, seus dados serão enviados para nosso sistema quando a conexão for restabelecida.</p>
-            </div>
-        `;
-        
-        showResult(resultContent);
-    })
-    .finally(() => {
         // Restaurar botão
         submitBtn.textContent = originalText;
         submitBtn.disabled = false;
-    });
+    };
+    
+    xhr.onerror = function() {
+        console.error('❌ Erro de rede ao tentar conectar com o servidor');
+        saveToLocalStorage(data);
+        
+        // Restaurar botão
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    };
+    
+    xhr.onabort = function() {
+        console.warn('⚠️ Requisição abortada');
+        saveToLocalStorage(data);
+        
+        // Restaurar botão
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    };
+    
+    // Configurar timeout de 15 segundos
+    xhr.timeout = 15000;
+    xhr.ontimeout = function() {
+        console.error('⏰ Timeout: Servidor não respondeu em 15 segundos');
+        saveToLocalStorage(data);
+        
+        // Restaurar botão
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    };
+    
+    // Enviar requisição
+    xhr.send(formData.toString());
+}
+
+// Função para salvar localmente em caso de erro
+function saveToLocalStorage(data) {
+    // Fallback: salvar dados localmente
+    const backupKey = 'ecred_backup_' + new Date().getTime();
+    localStorage.setItem(backupKey, JSON.stringify(data));
+    
+    // Mostrar mensagem de aviso
+    const resultContent = `
+        <div class="result-message result-info">
+            <h3>Solicitação salva localmente!</h3>
+            <p>Obrigado, <strong>${data.nome}</strong>! Seus dados foram salvos localmente.</p>
+            <p>Nossa equipe entrará em contato através do WhatsApp <strong>${data.whatsapp}</strong> em breve.</p>
+            <p><strong>Nota:</strong> Devido a um problema de conexão, seus dados serão enviados para nosso sistema quando a conexão for restabelecida.</p>
+        </div>
+    `;
+    
+    showResult(resultContent);
 }
 
 function isValidCPF(cpf) {
@@ -617,45 +672,99 @@ function restartForm() {
     // Voltar para a primeira etapa
     showStep('service');
 }
-// Adicione esta função para verificar dados salvos localmente
-function checkLocalStorage() {
-    const backupKeys = [];
+
+// ============================================================
+// FUNÇÕES DE TESTE E DIAGNÓSTICO (executar no console)
+// ============================================================
+
+// Função para testar a conexão com o Google Apps Script
+function testConnection() {
+    console.log('🔍 Testando conexão com o Google Apps Script...');
+    
+    const xhr = new XMLHttpRequest();
+    const testUrl = BACKEND_URL + '?test=' + Date.now();
+    
+    xhr.open('GET', testUrl, true);
+    
+    xhr.onload = function() {
+        if (xhr.status === 200) {
+            try {
+                const response = JSON.parse(xhr.responseText);
+                console.log('✅ Conexão bem-sucedida! Resposta:', response);
+                alert('✅ Conexão funcionando!\nResposta: ' + JSON.stringify(response, null, 2));
+            } catch (error) {
+                console.error('❌ Erro ao parsear resposta:', error);
+                console.log('Resposta bruta:', xhr.responseText);
+                alert('❌ Resposta inválida do servidor. Verifique o console.');
+            }
+        } else {
+            console.error('❌ Erro HTTP:', xhr.status, xhr.statusText);
+            alert('❌ Erro HTTP: ' + xhr.status + ' - ' + xhr.statusText);
+        }
+    };
+    
+    xhr.onerror = function() {
+        console.error('❌ Erro de rede - não foi possível conectar ao servidor');
+        alert('❌ Erro de rede - não foi possível conectar ao servidor');
+    };
+    
+    xhr.ontimeout = function() {
+        console.error('⏰ Timeout - servidor não respondeu');
+        alert('⏰ Timeout - servidor não respondeu em tempo hábil');
+    };
+    
+    xhr.timeout = 10000; // 10 segundos
+    xhr.send();
+}
+
+// Função para ver dados salvos localmente
+function viewLocalStorage() {
+    const backups = [];
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key.startsWith('ecred_backup_')) {
-            backupKeys.push(key);
+            const data = JSON.parse(localStorage.getItem(key));
+            backups.push({ key, data });
         }
     }
     
-    if (backupKeys.length > 0) {
-        console.log('📦 Dados salvos localmente encontrados:', backupKeys);
-        // Aqui você pode adicionar lógica para reenviar automaticamente
+    console.log('📦 Dados salvos localmente:', backups);
+    if (backups.length === 0) {
+        alert('Nenhum dado salvo localmente encontrado.');
+    } else {
+        alert(`Encontrados ${backups.length} registros salvos localmente. Verifique o console para detalhes.`);
     }
+    return backups;
 }
 
-// Chame esta função quando a página carregar
-document.addEventListener('DOMContentLoaded', function() {
-    initializeForm();
-    checkLocalStorage(); // Adicione esta linha
-});
-// Adicione esta função para verificar dados salvos localmente
-function checkLocalStorage() {
-    const backupKeys = [];
+// Função para limpar dados locais
+function clearLocalStorage() {
+    const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key.startsWith('ecred_backup_')) {
-            backupKeys.push(key);
+            keysToRemove.push(key);
         }
     }
     
-    if (backupKeys.length > 0) {
-        console.log('📦 Dados salvos localmente encontrados:', backupKeys);
-        // Aqui você pode adicionar lógica para reenviar automaticamente
-    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    console.log('🧹 Dados locais removidos:', keysToRemove.length);
+    alert(`Removidos ${keysToRemove.length} registros locais.`);
 }
 
-// Chame esta função quando a página carregar
-document.addEventListener('DOMContentLoaded', function() {
-    initializeForm();
-    checkLocalStorage(); // Adicione esta linha
-});
+// Função para simular envio de dados (para teste)
+function testSubmit() {
+    const testData = {
+        service: 'inss',
+        nome: 'João Silva Teste',
+        cpf: '123.456.789-00',
+        idade: '35',
+        whatsapp: '(11) 99999-9999',
+        questionAnswers: {
+            inssRepresentante: 'nao'
+        }
+    };
+    
+    console.log('🧪 Testando envio de dados:', testData);
+    exportToGoogleSheets(testData);
+}
