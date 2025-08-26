@@ -7,6 +7,9 @@ let formState = {
     history: ['service'] // Histórico de navegação
 };
 
+// URL do seu Google Apps Script
+const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxgUvfFC64dBDaIX9M7I_OwIt8bnOi0SaY52wbmHgC93p7ATZs38Re-49xM222OZb05/exec';
+
 // Inicialização quando o DOM estiver carregado
 document.addEventListener('DOMContentLoaded', function() {
     initializeForm();
@@ -487,7 +490,7 @@ function handleDataSubmission() {
     
     // Preparar dados para exportação
     const exportData = {
-        service: getServiceName(formState.selectedService),
+        service: formState.selectedService,
         nome: nome,
         cpf: cpf,
         idade: idade,
@@ -495,101 +498,76 @@ function handleDataSubmission() {
         questionAnswers: formState.questionAnswers
     };
     
-    // Exportar para Excel
-    exportToExcel(exportData);
-    
-    // Mostrar mensagem de sucesso
-    const resultContent = `
-        <div class="result-message result-success">
-            <h3>Solicitação enviada com sucesso!</h3>
-            <p>Obrigado, <strong>${nome}</strong>! Seus dados foram enviados com sucesso.</p>
-            <p>Nossa equipe entrará em contato através do WhatsApp <strong>${whatsapp}</strong> em breve para dar continuidade ao seu processo de crédito.</p>
-            <p><strong>Serviço solicitado:</strong> ${getServiceName(formState.selectedService)}</p>
-            <p><em>Os dados foram salvos automaticamente em nossa planilha.</em></p>
-        </div>
-    `;
-    
-    showResult(resultContent);
+    // Exportar para Google Sheets
+    exportToGoogleSheets(exportData);
 }
 
-function exportToExcel(data) {
-    // Enviar dados para o backend Flask
-    const backendUrl = 'https://script.google.com/macros/s/AKfycbxgUvfFC64dBDaIX9M7I_OwIt8bnOi0SaY52wbmHgC93p7ATZs38Re-49xM222OZb05/exec'; // URL do backend local
-        // Mostrar indicador de carregamento
-  const submitBtn = document.getElementById('btn-submit');
-  const originalText = submitBtn.textContent;
-  submitBtn.textContent = 'Enviando...';
-  submitBtn.disabled = true;
-     // Enviar dados para o Google Apps Script
-  fetch(backendUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data)
-  })
-  .then(response => response.json())
-  .then(result => {
-    if (result.success) {
-      console.log('✅ Dados enviados com sucesso para o Google Sheets!');
-      console.log('Timestamp:', result.timestamp);
-      // Mostrar mensagem de sucesso
-      const resultContent = `
-        <div class="result-message result-success">
-          <h3>Solicitação enviada com sucesso!</h3>
-          <p>Obrigado, <strong>${data.nome}</strong>! Seus dados foram enviados com sucesso.</p>
-          <p>Nossa equipe entrará em contato através do WhatsApp <strong>${data.whatsapp}</strong> em breve.</p>
-          <p><strong>Serviço solicitado:</strong> ${getServiceName(formState.selectedService)}</p>
-          <p><em>Os dados foram salvos automaticamente em nossa planilha.</em></p>
-        </div>
-      `;
-      
-      showResult(resultContent);
-    } else {
-      console.error('❌ Erro ao enviar dados:', result.error);
-      alert('Erro ao enviar dados. Por favor, tente novamente.');
-    }
-  })
-  .catch(error => {
-    console.error('❌ Erro de conexão:', error);
+function exportToGoogleSheets(data) {
+    // Mostrar indicador de carregamento
+    const submitBtn = document.getElementById('btn-submit');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Enviando...';
+    submitBtn.disabled = true;
     
-    // Fallback: salvar dados localmente (para não perder a informação)
-    localStorage.setItem('ecred_backup_' + new Date().getTime(), JSON.stringify(data));
-    alert('Problema de conexão. Seus dados foram salvos localmente e serão enviados quando a conexão estiver restaurada.');
-    
-    // Mostrar mensagem de aviso
-    const resultContent = `
-      <div class="result-message result-info">
-        <h3>Solicitação salva localmente!</h3>
-        <p>Obrigado, <strong>${data.nome}</strong>! Seus dados foram salvos localmente.</p>
-        <p>Nossa equipe entrará em contato através do WhatsApp <strong>${data.whatsapp}</strong> em breve.</p>
-        <p><strong>Nota:</strong> Devido a um problema de conexão, seus dados serão enviados para nosso sistema quando a conexão for restabelecida.</p>
-      </div>
-    `;
-    
-    showResult(resultContent);
-  })
-  .finally(() => {
-    // Restaurar botão
-    submitBtn.textContent = originalText;
-    submitBtn.disabled = false;
-  });
-}
-            // Fallback: salvar dados localmente como JSON para não perder
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `dados_formulario_backup_${new Date().getTime()}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
+    // Enviar dados para o Google Apps Script
+    fetch(BACKEND_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Erro na resposta do servidor');
+        }
+        return response.json();
+    })
+    .then(result => {
+        if (result.success) {
+            console.log('✅ Dados enviados com sucesso para o Google Sheets!');
             
-            console.log('💾 Dados salvos como backup local em JSON');
-        });
+            // Mostrar mensagem de sucesso
+            const resultContent = `
+                <div class="result-message result-success">
+                    <h3>Solicitação enviada com sucesso!</h3>
+                    <p>Obrigado, <strong>${data.nome}</strong>! Seus dados foram enviados com sucesso.</p>
+                    <p>Nossa equipe entrará em contato através do WhatsApp <strong>${data.whatsapp}</strong> em breve para dar continuidade ao seu processo de crédito.</p>
+                    <p><strong>Serviço solicitado:</strong> ${getServiceName(formState.selectedService)}</p>
+                    <p><em>Os dados foram salvos automaticamente em nossa planilha.</em></p>
+                </div>
+            `;
+            
+            showResult(resultContent);
+        } else {
+            console.error('❌ Erro ao enviar dados:', result.error);
+            throw new Error(result.error || 'Erro desconhecido');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Erro de conexão:', error);
         
-    } catch (error) {
-        console.error('❌ Erro ao processar exportação:', error);
-    }
+        // Fallback: salvar dados localmente (para não perder a informação)
+        const backupKey = 'ecred_backup_' + new Date().getTime();
+        localStorage.setItem(backupKey, JSON.stringify(data));
+        
+        // Mostrar mensagem de aviso
+        const resultContent = `
+            <div class="result-message result-info">
+                <h3>Solicitação salva localmente!</h3>
+                <p>Obrigado, <strong>${data.nome}</strong>! Seus dados foram salvos localmente.</p>
+                <p>Nossa equipe entrará em contato através do WhatsApp <strong>${data.whatsapp}</strong> em breve.</p>
+                <p><strong>Nota:</strong> Devido a um problema de conexão, seus dados serão enviados para nosso sistema quando a conexão for restabelecida.</p>
+            </div>
+        `;
+        
+        showResult(resultContent);
+    })
+    .finally(() => {
+        // Restaurar botão
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    });
 }
 
 function isValidCPF(cpf) {
@@ -639,4 +617,3 @@ function restartForm() {
     // Voltar para a primeira etapa
     showStep('service');
 }
-
