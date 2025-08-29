@@ -7,19 +7,19 @@ let formState = {
     history: ['service'] // Histórico de navegação
 };
 
-// IDs dos campos do Google Form (você vai precisar criar um form e obter esses IDs)
-const FIELD_IDS = {
-    TIMESTAMP: 'entry.123456789', // Substitua pelos IDs reais
-    SERVICE: 'entry.987654321',
-    NAME: 'entry.111111111',
-    CPF: 'entry.222222222',
-    AGE: 'entry.333333333',
-    WHATSAPP: 'entry.444444444',
-    ANSWERS: 'entry.555555555'
-};
+// URL do seu Google Forms (JÁ ATUALIZADO COM SEU LINK)
+const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdGoFA5j67kQZkA0rkMHb8KOMjjvryZp23ryOzGo3OPFCGefA/formResponse';
 
-// URL de ação do Google Form (SUBSTITUA pela sua URL)
-const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdGoFA5j67kQZkA0rkMHb8KOMjjvryZp23ryOzGo3OPFCGefA/viewform?usp=previewhttps://docs.google.com/forms/d/e/1FAIpQLSdGoFA5j67kQZkA0rkMHb8KOMjjvryZp23ryOzGo3OPFCGefA/viewform?usp=header';
+// IDs dos campos do SEU formulário (JÁ ATUALIZADOS)
+const FIELD_IDS = {
+    TIMESTAMP: 'entry.1424008886',    // Data/Hora
+    SERVICE: 'entry.2141032004',      // Serviço
+    NAME: 'entry.1501452404',         // Nome
+    CPF: 'entry.1435084519',          // CPF
+    AGE: 'entry.1022619816',          // Idade
+    WHATSAPP: 'entry.1194160805',     // WhatsApp
+    ANSWERS: 'entry.1404968756'       // Respostas
+};
 
 // Inicialização quando o DOM estiver carregado
 document.addEventListener('DOMContentLoaded', function() {
@@ -508,84 +508,88 @@ function submitToGoogleForm(data) {
     const originalText = submitBtn.textContent;
     submitBtn.textContent = 'Enviando...';
     submitBtn.disabled = true;
-    
-    try {
-        // Criar iframe invisível para enviar o form
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.name = 'google-form-frame';
-        document.body.appendChild(iframe);
-        
-        // Criar formulário
-        const form = document.createElement('form');
-        form.action = GOOGLE_FORM_URL;
-        form.method = 'POST';
-        form.target = 'google-form-frame';
-        form.style.display = 'none';
-        
-        // Adicionar campos ao formulário
-        const formData = {
-            [FIELD_IDS.TIMESTAMP]: new Date().toLocaleString('pt-BR'),
-            [FIELD_IDS.SERVICE]: getServiceName(data.service),
-            [FIELD_IDS.NAME]: data.nome,
-            [FIELD_IDS.CPF]: data.cpf,
-            [FIELD_IDS.AGE]: data.idade,
-            [FIELD_IDS.WHATSAPP]: data.whatsapp,
-            [FIELD_IDS.ANSWERS]: JSON.stringify(data.questionAnswers)
-        };
-        
-        for (const [key, value] of Object.entries(formData)) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
-        }
-        
-        document.body.appendChild(form);
-        
-        // Configurar timeout para limpeza
-        const cleanup = () => {
-            setTimeout(() => {
-                if (document.body.contains(form)) document.body.removeChild(form);
-                if (document.body.contains(iframe)) document.body.removeChild(iframe);
-            }, 3000);
-        };
-        
-        // Enviar formulário
-        iframe.onload = function() {
-            console.log('✅ Formulário enviado com sucesso!');
-            
-            const resultContent = `
-                <div class="result-message result-success">
-                    <h3>Solicitação enviada com sucesso!</h3>
-                    <p>Obrigado, <strong>${data.nome}</strong>! Seus dados foram enviados com sucesso.</p>
-                    <p>Nossa equipe entrará em contato através do WhatsApp <strong>${data.whatsapp}</strong> em breve.</p>
-                    <p><strong>Serviço solicitado:</strong> ${getServiceName(data.service)}</p>
-                </div>
-            `;
-            
-            showResult(resultContent);
-            cleanup();
-        };
-        
-        iframe.onerror = function() {
-            console.error('❌ Erro ao enviar formulário');
-            saveToLocalStorage(data);
-            cleanup();
-        };
-        
-        form.submit();
-        
-    } catch (error) {
-        console.error('❌ Erro no envio:', error);
-        saveToLocalStorage(data);
-    } finally {
-        setTimeout(() => {
-            submitBtn.textContent = originalText;
-            submitBtn.disabled = false;
-        }, 2000);
+
+    // Criar iframe invisível
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.name = 'google-form-frame-' + Date.now();
+    document.body.appendChild(iframe);
+
+    // Criar formulário
+    const form = document.createElement('form');
+    form.action = GOOGLE_FORM_URL;
+    form.method = 'POST';
+    form.target = iframe.name;
+    form.style.display = 'none';
+
+    // Adicionar campos com os IDs CORRETOS do seu forms
+    const formData = {
+        [FIELD_IDS.TIMESTAMP]: new Date().toLocaleString('pt-BR'),
+        [FIELD_IDS.SERVICE]: getServiceName(data.service),
+        [FIELD_IDS.NAME]: data.nome,
+        [FIELD_IDS.CPF]: data.cpf,
+        [FIELD_IDS.AGE]: data.idade,
+        [FIELD_IDS.WHATSAPP]: data.whatsapp,
+        [FIELD_IDS.ANSWERS]: JSON.stringify(data.questionAnswers || {})
+    };
+
+    for (const [name, value] of Object.entries(formData)) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        form.appendChild(input);
     }
+
+    document.body.appendChild(form);
+
+    // Configurar eventos
+    iframe.onload = function() {
+        console.log('✅ Formulário enviado com sucesso!');
+        showSuccessMessage(data);
+        cleanupElements(form, iframe);
+        
+        // Restaurar botão
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    };
+
+    iframe.onerror = function() {
+        console.error('❌ Erro ao enviar formulário');
+        saveToLocalStorage(data);
+        cleanupElements(form, iframe);
+        
+        // Restaurar botão
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    };
+
+    // Enviar formulário
+    form.submit();
+}
+
+function cleanupElements(form, iframe) {
+    setTimeout(() => {
+        if (form && document.body.contains(form)) {
+            document.body.removeChild(form);
+        }
+        if (iframe && document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+        }
+    }, 5000);
+}
+
+function showSuccessMessage(data) {
+    const resultContent = `
+        <div class="result-message result-success">
+            <h3>Solicitação enviada com sucesso! ✅</h3>
+            <p>Obrigado, <strong>${data.nome}</strong>! Seus dados foram enviados.</p>
+            <p>Entraremos em contato pelo WhatsApp: <strong>${data.whatsapp}</strong></p>
+            <p><strong>Serviço:</strong> ${getServiceName(data.service)}</p>
+            <p><em>Os dados foram salvos em nossa planilha do Google.</em></p>
+        </div>
+    `;
+    showResult(resultContent);
 }
 
 function saveToLocalStorage(data) {
@@ -594,7 +598,7 @@ function saveToLocalStorage(data) {
     
     const resultContent = `
         <div class="result-message result-info">
-            <h3>Solicitação salva localmente!</h3>
+            <h3>Solicitação salva localmente! 📱</h3>
             <p>Obrigado, <strong>${data.nome}</strong>! Seus dados foram salvos localmente.</p>
             <p>Nossa equipe entrará em contato através do WhatsApp <strong>${data.whatsapp}</strong> em breve.</p>
             <p><strong>Nota:</strong> Devido a um problema temporário, seus dados serão enviados para nosso sistema em breve.</p>
@@ -666,45 +670,11 @@ function clearLocalStorage() {
     keysToRemove.forEach(key => localStorage.removeItem(key));
     console.log('Dados locais removidos:', keysToRemove.length);
 }
-// Função para descobrir IDs automaticamente
-function findFormIds() {
-    // Abra o console (F12) e cole esta função
-    // Depois execute: findFormIds()
-    
-    const form = document.querySelector('form');
-    if (!form) {
-        console.error('Nenhum formulário encontrado na página');
-        return;
-    }
-    
-    console.log('🔍 Procurando IDs de campos no formulário...');
-    
-    // Procurar por inputs com name começando com "entry."
-    const inputs = form.querySelectorAll('input[name^="entry."], textarea[name^="entry."]');
-    
-    if (inputs.length === 0) {
-        console.log('❌ Nenhum campo com ID "entry." encontrado');
-        console.log('📋 Todos os campos encontrados:');
-        form.querySelectorAll('input, textarea').forEach(input => {
-            console.log(`- ${input.name}: ${input.placeholder || input.type}`);
-        });
-        return;
-    }
-    
-    console.log('✅ Campos encontrados:');
-    inputs.forEach(input => {
-        console.log(`📋 ${input.name}: ${input.placeholder || input.type || 'campo'}`);
-    });
-    
-    // Sugerir estrutura para o código
-    console.log('\n💡 Estrutura sugerida para seu script:');
-    console.log(`const FIELD_IDS = {`);
-    inputs.forEach((input, index) => {
-        const fieldNames = ['TIMESTAMP', 'SERVICE', 'NAME', 'CPF', 'AGE', 'WHATSAPP', 'ANSWERS'];
-        const name = fieldNames[index] || `FIELD_${index + 1}`;
-        console.log(`    ${name}: '${input.name}',`);
-    });
-    console.log(`};`);
-}
 
-// Execute esta função no console do navegador quando estiver na página do Google Forms
+// Teste de conexão com o forms
+function testFormConnection() {
+    console.log('🧪 Testando conexão com Google Forms...');
+    console.log('📋 URL do Form:', GOOGLE_FORM_URL);
+    console.log('🔑 IDs dos Campos:', FIELD_IDS);
+    alert('Teste de conexão iniciado. Verifique o console para detalhes.');
+}
