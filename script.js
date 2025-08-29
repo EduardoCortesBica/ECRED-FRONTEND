@@ -19,7 +19,7 @@ const FIELD_IDS = {
 };
 
 // URL de ação do Google Form (SUBSTITUA pela sua URL)
-const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/SEU_FORM_ID/formResponse';
+const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdGoFA5j67kQZkA0rkMHb8KOMjjvryZp23ryOzGo3OPFCGefA/formResponse';
 
 // Inicialização quando o DOM estiver carregado
 document.addEventListener('DOMContentLoaded', function() {
