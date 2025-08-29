@@ -507,18 +507,12 @@ function submitToGoogleForm(data) {
     submitBtn.disabled = true;
     
     try {
-        // Criar iframe invisível para enviar o form
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.name = 'google-form-frame';
-        document.body.appendChild(iframe);
-        
-        // Criar formulário
-        const form = document.createElement('form');
-        form.action = GOOGLE_FORM_URL;
-        form.method = 'POST';
-        form.target = 'google-form-frame';
-        form.style.display = 'none';
+        // Método alternativo usando um formulário oculto
+        const hiddenForm = document.createElement('form');
+        hiddenForm.action = GOOGLE_FORM_URL;
+        hiddenForm.method = 'POST';
+        hiddenForm.target = '_blank';
+        hiddenForm.style.display = 'none';
         
         // Adicionar campos ao formulário
         const formData = {
@@ -536,22 +530,17 @@ function submitToGoogleForm(data) {
             input.type = 'hidden';
             input.name = key;
             input.value = value;
-            form.appendChild(input);
+            hiddenForm.appendChild(input);
         }
         
-        document.body.appendChild(form);
-        
-        // Configurar timeout para limpeza
-        const cleanup = () => {
-            setTimeout(() => {
-                if (document.body.contains(form)) document.body.removeChild(form);
-                if (document.body.contains(iframe)) document.body.removeChild(iframe);
-            }, 3000);
-        };
+        document.body.appendChild(hiddenForm);
         
         // Enviar formulário
-        iframe.onload = function() {
-            console.log('✅ Formulário enviado com sucesso!');
+        hiddenForm.submit();
+        
+        // Remover formulário após envio
+        setTimeout(() => {
+            document.body.removeChild(hiddenForm);
             
             const resultContent = `
                 <div class="result-message result-success">
@@ -559,20 +548,12 @@ function submitToGoogleForm(data) {
                     <p>Obrigado, <strong>${data.nome}</strong>! Seus dados foram enviados com sucesso.</p>
                     <p>Nossa equipe entrará em contato através do WhatsApp <strong>${data.whatsapp}</strong> em breve.</p>
                     <p><strong>Serviço solicitado:</strong> ${getServiceName(data.service)}</p>
+                    <p><small>Se a página do Google Forms abriu, você pode fechá-la agora.</small></p>
                 </div>
             `;
             
             showResult(resultContent);
-            cleanup();
-        };
-        
-        iframe.onerror = function() {
-            console.error('❌ Erro ao enviar formulário');
-            saveToLocalStorage(data);
-            cleanup();
-        };
-        
-        form.submit();
+        }, 1000);
         
     } catch (error) {
         console.error('❌ Erro no envio:', error);
