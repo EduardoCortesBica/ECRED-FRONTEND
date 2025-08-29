@@ -12,13 +12,13 @@ const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdGoFA5j67kQZk
 
 // IDs dos campos (SUBSTITUA com os IDs do SEU forms)
 const FIELD_IDS = {
-    TIMESTAMP: 'entry.1424008886',
-    SERVICE: 'entry.2141032004', 
-    NAME: 'entry.1501452404',
-    CPF: 'entry.1435084519',
-    AGE: 'entry.1022619816',
-    WHATSAPP: 'entry.1194160805',
-    ANSWERS: 'entry.1404968756'
+    TIMESTAMP: 'entry.205450624',
+    SERVICE: 'entry.1815975313', 
+    NAME: 'entry.99223554',
+    CPF: 'entry.168348437',
+    AGE: 'entry.1853096298',
+    WHATSAPP: 'entry.59144836',
+    ANSWERS: 'entry.993709921'
 };
 
 // Inicialização quando o DOM estiver carregado
