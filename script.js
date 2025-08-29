@@ -507,40 +507,27 @@ function submitToGoogleForm(data) {
     submitBtn.disabled = true;
     
     try {
-        // Método alternativo usando um formulário oculto
-        const hiddenForm = document.createElement('form');
-        hiddenForm.action = GOOGLE_FORM_URL;
-        hiddenForm.method = 'POST';
-        hiddenForm.target = '_blank';
-        hiddenForm.style.display = 'none';
+        // Usando fetch com modo 'no-cors' para evitar redirecionamento
+        const formData = new FormData();
         
         // Adicionar campos ao formulário
-        const formData = {
-            [FIELD_IDS.TIMESTAMP]: new Date().toLocaleString('pt-BR'),
-            [FIELD_IDS.SERVICE]: getServiceName(data.service),
-            [FIELD_IDS.NAME]: data.nome,
-            [FIELD_IDS.CPF]: data.cpf,
-            [FIELD_IDS.AGE]: data.idade,
-            [FIELD_IDS.WHATSAPP]: data.whatsapp,
-            [FIELD_IDS.ANSWERS]: JSON.stringify(data.questionAnswers)
-        };
+        formData.append(FIELD_IDS.TIMESTAMP, new Date().toLocaleString('pt-BR'));
+        formData.append(FIELD_IDS.SERVICE, getServiceName(data.service));
+        formData.append(FIELD_IDS.NAME, data.nome);
+        formData.append(FIELD_IDS.CPF, data.cpf);
+        formData.append(FIELD_IDS.AGE, data.idade);
+        formData.append(FIELD_IDS.WHATSAPP, data.whatsapp);
+        formData.append(FIELD_IDS.ANSWERS, JSON.stringify(data.questionAnswers));
         
-        for (const [key, value] of Object.entries(formData)) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            hiddenForm.appendChild(input);
-        }
-        
-        document.body.appendChild(hiddenForm);
-        
-        // Enviar formulário
-        hiddenForm.submit();
-        
-        // Remover formulário após envio
-        setTimeout(() => {
-            document.body.removeChild(hiddenForm);
+        // Enviar via fetch com no-cors (não vai redirecionar)
+        fetch(GOOGLE_FORM_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: formData
+        })
+        .then(() => {
+            // Mesmo com no-cors, não temos resposta, mas o formulário foi enviado
+            console.log('✅ Formulário enviado com sucesso!');
             
             const resultContent = `
                 <div class="result-message result-success">
@@ -548,12 +535,15 @@ function submitToGoogleForm(data) {
                     <p>Obrigado, <strong>${data.nome}</strong>! Seus dados foram enviados com sucesso.</p>
                     <p>Nossa equipe entrará em contato através do WhatsApp <strong>${data.whatsapp}</strong> em breve.</p>
                     <p><strong>Serviço solicitado:</strong> ${getServiceName(data.service)}</p>
-                    <p><small>Se a página do Google Forms abriu, você pode fechá-la agora.</small></p>
                 </div>
             `;
             
             showResult(resultContent);
-        }, 1000);
+        })
+        .catch(error => {
+            console.error('❌ Erro ao enviar formulário:', error);
+            saveToLocalStorage(data);
+        });
         
     } catch (error) {
         console.error('❌ Erro no envio:', error);
